@@ -269,6 +269,7 @@ Geometry
    mesh_query_aabb_next
    mesh_query_aabb_next_tiled
    mesh_query_aabb_tiled
+   mesh_query_edge
    mesh_query_furthest_point_no_sign
    mesh_query_point
    mesh_query_point_no_sign
