@@ -1690,9 +1690,7 @@ def create_self_edge_contacts(
         # Edge 0
         # NOTE: Edge existance checks with reversed order as the edges are traversed reveresly in the
         # neighbouring triangles
-        if (p0_idx == p_a_idx or p0_idx == p_b_idx or p1_idx == p_a_idx or p1_idx == p_b_idx
-                or check_edge_exists(p1_idx, p0_idx, edge_contact_pairs, index, index + f_contact_index)
-            ):
+        if (p0_idx == p_a_idx or p0_idx == p_b_idx or p1_idx == p_a_idx or p1_idx == p_b_idx):
             edge_contact_filter[index + f_contact_index + 0] = True
         else:
             p_alpha, p_beta, norm = create_edge_pair_contact(
@@ -1709,14 +1707,16 @@ def create_self_edge_contacts(
             )
             if p_alpha < 1e-5:
                 edge_contact_filter[index + f_contact_index + 0] = True
+            elif check_edge_exists(p1_idx, p0_idx, edge_contact_pairs, index, index + f_contact_index):
+                # Already added from the neighbouring face. Checked only for accepted
+                # contacts: the scan is linear in the number of candidates
+                edge_contact_filter[index + f_contact_index + 0] = True
             else:
                 edge_contact_normal[index + f_contact_index + 0] = norm
                 edge_contact_pairs[index + f_contact_index + 0] = wp.vec4i(p_a_idx, p_b_idx, p0_idx, p1_idx)
         
         # Edge 1
-        if (p2_idx == p_a_idx or p2_idx == p_b_idx or p1_idx == p_a_idx or p1_idx == p_b_idx
-                or check_edge_exists(p2_idx, p1_idx, edge_contact_pairs, index, index + f_contact_index)
-            ):
+        if (p2_idx == p_a_idx or p2_idx == p_b_idx or p1_idx == p_a_idx or p1_idx == p_b_idx):
             edge_contact_filter[index + f_contact_index + 1] = True
         else:
             p_alpha, p_beta, norm = create_edge_pair_contact(
@@ -1733,14 +1733,16 @@ def create_self_edge_contacts(
             )
             if p_alpha < 1e-5:
                 edge_contact_filter[index + f_contact_index + 1] = True
+            elif check_edge_exists(p2_idx, p1_idx, edge_contact_pairs, index, index + f_contact_index):
+                # Already added from the neighbouring face. Checked only for accepted
+                # contacts: the scan is linear in the number of candidates
+                edge_contact_filter[index + f_contact_index + 1] = True
             else:
                 edge_contact_normal[index + f_contact_index + 1] = norm
                 edge_contact_pairs[index + f_contact_index + 1] = wp.vec4i(p_a_idx, p_b_idx, p1_idx, p2_idx)
         
         # Edge 2
-        if (p2_idx == p_a_idx or p2_idx == p_b_idx or p0_idx == p_a_idx or p0_idx == p_b_idx
-                or check_edge_exists(p0_idx, p2_idx, edge_contact_pairs, index, index + f_contact_index)
-            ):
+        if (p2_idx == p_a_idx or p2_idx == p_b_idx or p0_idx == p_a_idx or p0_idx == p_b_idx):
             edge_contact_filter[index + f_contact_index + 2] = True
         else:
             p_alpha, p_beta, norm = create_edge_pair_contact(
@@ -1756,6 +1758,10 @@ def create_self_edge_contacts(
                 dt
             )  
             if p_alpha < 1e-5:
+                edge_contact_filter[index + f_contact_index + 2] = True
+            elif check_edge_exists(p0_idx, p2_idx, edge_contact_pairs, index, index + f_contact_index):
+                # Already added from the neighbouring face. Checked only for accepted
+                # contacts: the scan is linear in the number of candidates
                 edge_contact_filter[index + f_contact_index + 2] = True
             else:
                 edge_contact_normal[index + f_contact_index + 2] = norm
