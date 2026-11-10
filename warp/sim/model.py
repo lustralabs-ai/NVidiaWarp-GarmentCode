@@ -384,7 +384,7 @@ def compute_shape_mass(type, scale, src, density, is_solid, thickness):
             mass_ratio = sx * sy * sz * density
             m_new = m * mass_ratio
 
-            c_new = wp.cw_mul(c, scale)
+            c_new = wp.cw_mul(c, wp.vec3(scale))  # Warp 1.13: tuple scale no longer accepted by builtins
 
             Ixx = I[0, 0] * (sy**2 + sz**2) / 2 * mass_ratio
             Iyy = I[1, 1] * (sx**2 + sz**2) / 2 * mass_ratio
