@@ -1803,7 +1803,9 @@ CUDA_CALLABLE inline int cubql_ray_traversal(
     float& hit_v,
     float& hit_sign,
     vec3& hit_normal,
-    int& hit_face
+    int& hit_face,
+    int exclude_vertex_a = -1,
+    int exclude_vertex_b = -1
 )
 {
     if (!mesh.cubql_bvh.nodes || !mesh.cubql_bvh.primitive_indices)
@@ -1879,6 +1881,14 @@ CUDA_CALLABLE inline int cubql_ray_traversal(
                 const int i0 = mesh.indices[primitive_index * 3 + 0];
                 const int i1 = mesh.indices[primitive_index * 3 + 1];
                 const int i2 = mesh.indices[primitive_index * 3 + 2];
+
+                // Optional vertex exclusion (used by mesh_query_edge): skip triangles
+                // that share a vertex with the query edge. Mesh indices are never
+                // negative, so the default of -1 excludes nothing.
+                if (exclude_vertex_a >= 0
+                    && (i0 == exclude_vertex_a || i1 == exclude_vertex_a || i2 == exclude_vertex_a
+                        || i0 == exclude_vertex_b || i1 == exclude_vertex_b || i2 == exclude_vertex_b))
+                    continue;
 
                 const vec3 p = mesh.points[i0];
                 const vec3 q = mesh.points[i1];
@@ -2622,6 +2632,225 @@ CUDA_CALLABLE inline void adj_mesh_query_ray(
         id, start, dir, max_t, ret.t, ret.u, ret.v, ret.sign, ret.normal, ret.face, root, adj_id, adj_start, adj_dir,
         adj_max_t, adj_ret.t, adj_ret.u, adj_ret.v, adj_ret.sign, adj_ret.normal, adj_ret.face, adj_root, adj_ret.result
     );
+}
+
+// GarmentCode extension (ported from the GarmentCode Warp fork, based on Warp 1.0.0-beta.6).
+//
+// Casts a ray from mesh vertex v1 towards mesh vertex v2 (max_t = |x(v2) - x(v1)|) and
+// returns the closest ray-triangle hit, ignoring every triangle that contains v1 or v2
+// (i.e. the triangles adjacent to the edge and to its end points). Used for edge-based
+// self-intersection detection of cloth. Hits satisfy 0 <= t < |x(v2) - x(v1)|.
+// The outputs have the same meaning as those of mesh_query_ray(): (u, v) are the
+// barycentric weights of the face's first and second vertex, sign is the Woop
+// determinant (> 0 for a front-face hit), normal is the normalized geometric face normal.
+//
+// The Warp BVH traversal visits the nearer child first and prunes by entry distance, the
+// same scheme as the HIP mesh_query_ray() path, and is used on all backends. Node bounds
+// are padded by 1e-3 as in mesh_query_ray() and the original fork.
+CUDA_CALLABLE inline bool
+mesh_query_edge(uint64_t id, int v1, int v2, float& t, float& u, float& v, float& sign, vec3& normal, int& face)
+{
+    Mesh mesh = mesh_get(id);
+
+    const vec3 start = mesh.points[v1];
+    const vec3 edge = mesh.points[v2] - start;
+    const vec3 dir = normalize(edge);
+    const float max_t = length(edge);
+
+    // degenerate edge (v1 == v2 or coincident points): nothing can satisfy 0 <= t < 0
+    if (!(max_t > 0.0f))
+        return false;
+
+    if (mesh_uses_cubql(mesh)) {
+        if (cubql_ray_traversal<CuBQLRayMode::ClosestHit>(mesh, start, dir, max_t, t, u, v, sign, normal, face, v1, v2)
+            > 0) {
+            normal = normalize(normal);
+            return true;
+        }
+        return false;
+    }
+
+    // note: bvh.num_nodes is not maintained for device-built (LBVH) trees, so test the triangle count
+    if (mesh.num_tris == 0 || !mesh.bvh.root)
+        return false;
+
+    struct StackEntry {
+        int node;
+        float t_entry;
+    };
+    StackEntry stack[BVH_QUERY_STACK_SIZE];
+    int count = 0;
+
+    const vec3 rcp_dir = vec3(1.0f / dir[0], 1.0f / dir[1], 1.0f / dir[2]);
+    const float eps = 1.e-3f;
+
+    float min_t = max_t;
+    int min_face = -1;
+    float min_u = 0.0f;
+    float min_v = 0.0f;
+    float min_sign = 1.0f;
+    vec3 min_normal;
+
+    const int root_idx = *mesh.bvh.root;
+    {
+        const BVHPackedNodeHalf root_lower = bvh_load_node(mesh.bvh.node_lowers, root_idx);
+        const BVHPackedNodeHalf root_upper = bvh_load_node(mesh.bvh.node_uppers, root_idx);
+
+        float root_t;
+        const bool root_hit = intersect_ray_aabb(
+            start, rcp_dir, vec3(root_lower.x - eps, root_lower.y - eps, root_lower.z - eps),
+            vec3(root_upper.x + eps, root_upper.y + eps, root_upper.z + eps), root_t
+        );
+        if (!root_hit || root_t >= min_t)
+            return false;
+
+        stack[count].node = root_idx;
+        stack[count].t_entry = root_t;
+        count++;
+    }
+
+    while (count > 0) {
+        const StackEntry entry = stack[--count];
+
+        // node cannot contain a hit closer than the current best
+        if (entry.t_entry >= min_t)
+            continue;
+
+        const int node_index = entry.node;
+        const BVHPackedNodeHalf lower = bvh_load_node(mesh.bvh.node_lowers, node_index);
+        const BVHPackedNodeHalf upper = bvh_load_node(mesh.bvh.node_uppers, node_index);
+
+        if (lower.b) {
+            // leaf: primitive range [lower.i, upper.i) into primitive_indices
+            const int start_index = lower.i;
+            const int end_index = upper.i;
+
+            for (int primitive_counter = start_index; primitive_counter < end_index; primitive_counter++) {
+                const int primitive_index = mesh.bvh.primitive_indices[primitive_counter];
+                const int i = mesh.indices[primitive_index * 3 + 0];
+                const int j = mesh.indices[primitive_index * 3 + 1];
+                const int k = mesh.indices[primitive_index * 3 + 2];
+
+                // skip triangles touching the edge's end points
+                if (i == v1 || i == v2 || j == v1 || j == v2 || k == v1 || k == v2)
+                    continue;
+
+                const vec3 p = mesh.points[i];
+                const vec3 q = mesh.points[j];
+                const vec3 r = mesh.points[k];
+
+                float temp_t, temp_u, temp_v, temp_sign;
+                vec3 n;
+
+                if (intersect_ray_tri_woop(start, dir, p, q, r, temp_t, temp_u, temp_v, temp_sign, &n)) {
+                    if (temp_t < min_t && temp_t >= 0.0f) {
+                        min_t = temp_t;
+                        min_face = primitive_index;
+                        min_u = temp_u;
+                        min_v = temp_v;
+                        min_sign = temp_sign;
+                        min_normal = n;
+                    }
+                }
+            }
+        } else {
+            const int left_idx = lower.i;
+            const int right_idx = upper.i;
+
+            const BVHPackedNodeHalf left_lower = bvh_load_node(mesh.bvh.node_lowers, left_idx);
+            const BVHPackedNodeHalf left_upper = bvh_load_node(mesh.bvh.node_uppers, left_idx);
+            const BVHPackedNodeHalf right_lower = bvh_load_node(mesh.bvh.node_lowers, right_idx);
+            const BVHPackedNodeHalf right_upper = bvh_load_node(mesh.bvh.node_uppers, right_idx);
+
+            float left_t, right_t;
+            const bool left_hit = intersect_ray_aabb(
+                                      start, rcp_dir, vec3(left_lower.x - eps, left_lower.y - eps, left_lower.z - eps),
+                                      vec3(left_upper.x + eps, left_upper.y + eps, left_upper.z + eps), left_t
+                                  )
+                && left_t < min_t;
+            const bool right_hit
+                = intersect_ray_aabb(
+                      start, rcp_dir, vec3(right_lower.x - eps, right_lower.y - eps, right_lower.z - eps),
+                      vec3(right_upper.x + eps, right_upper.y + eps, right_upper.z + eps), right_t
+                  )
+                && right_t < min_t;
+
+            // push farther child first so the nearer one is processed next
+            if (left_hit && right_hit) {
+                const bool left_near = left_t < right_t;
+                stack[count].node = left_near ? right_idx : left_idx;
+                stack[count].t_entry = left_near ? right_t : left_t;
+                count++;
+                stack[count].node = left_near ? left_idx : right_idx;
+                stack[count].t_entry = left_near ? left_t : right_t;
+                count++;
+            } else if (left_hit) {
+                stack[count].node = left_idx;
+                stack[count].t_entry = left_t;
+                count++;
+            } else if (right_hit) {
+                stack[count].node = right_idx;
+                stack[count].t_entry = right_t;
+                count++;
+            }
+        }
+    }
+
+    if (min_face >= 0) {
+        u = min_u;
+        v = min_v;
+        sign = min_sign;
+        t = min_t;
+        normal = normalize(min_normal);
+        face = min_face;
+        return true;
+    }
+    return false;
+}
+
+// Not differentiable; the original fork's adjoint was also empty.
+CUDA_CALLABLE inline void adj_mesh_query_edge(
+    uint64_t id,
+    int v1,
+    int v2,
+    float t,
+    float u,
+    float v,
+    float sign,
+    const vec3& normal,
+    int face,
+    uint64_t adj_id,
+    int& adj_v1,
+    int& adj_v2,
+    float& adj_t,
+    float& adj_u,
+    float& adj_v,
+    float& adj_sign,
+    vec3& adj_normal,
+    int& adj_face,
+    bool& adj_ret
+)
+{
+}
+
+CUDA_CALLABLE inline mesh_query_ray_t mesh_query_edge(uint64_t id, int v1, int v2)
+{
+    mesh_query_ray_t query;
+    query.result = mesh_query_edge(id, v1, v2, query.t, query.u, query.v, query.sign, query.normal, query.face);
+    return query;
+}
+
+CUDA_CALLABLE inline void adj_mesh_query_edge(
+    uint64_t id,
+    int v1,
+    int v2,
+    const mesh_query_ray_t& ret,
+    uint64_t adj_id,
+    int& adj_v1,
+    int& adj_v2,
+    mesh_query_ray_t& adj_ret
+)
+{
 }
 
 // determine if a point is inside (ret < 0 ) or outside the mesh (ret > 0) using ray tracing

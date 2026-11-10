@@ -108,6 +108,7 @@ def default_suite(test_loader: unittest.TestLoader = unittest.defaultTestLoader)
     from warp.tests.geometry.test_marching_cubes import TestMarchingCubes
     from warp.tests.geometry.test_mesh import TestMesh
     from warp.tests.geometry.test_mesh_query_aabb import TestMeshQueryAABBMethods
+    from warp.tests.geometry.test_mesh_query_edge import TestMeshQueryEdge
     from warp.tests.geometry.test_mesh_query_point import TestMeshQueryPoint
     from warp.tests.geometry.test_mesh_query_ray import TestMeshQueryRay
     from warp.tests.geometry.test_volume import TestVolume
@@ -314,6 +315,7 @@ def default_suite(test_loader: unittest.TestLoader = unittest.defaultTestLoader)
         TestMempool,
         TestMesh,
         TestMeshQueryAABBMethods,
+        TestMeshQueryEdge,
         TestMeshQueryPoint,
         TestMeshQueryRay,
         TestModuleContamination,

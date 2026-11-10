@@ -7879,6 +7879,61 @@ add_builtin(
 
 
 add_builtin(
+    "mesh_query_edge",
+    input_types={
+        "id": uint64,
+        "v1": int,
+        "v2": int,
+        "t": float,
+        "bary_u": float,
+        "bary_v": float,
+        "sign": float,
+        "normal": vec3,
+        "face": int,
+    },
+    value_type=builtins.bool,
+    group="Geometry",
+    doc="""Compute the closest hit of a mesh edge with the rest of the :class:`warp.Mesh` with identifier ``id``.
+
+    A ray is cast from vertex ``v1`` towards vertex ``v2`` of the mesh. Triangles that contain ``v1`` or ``v2``
+    are ignored. Returns ``True`` if a hit with ``0 <= t < length(points[v2] - points[v1])`` is found, in which
+    case the output arguments are written with the same meaning as for :func:`mesh_query_ray`; otherwise
+    they are left unchanged.
+
+    Args:
+        id: The mesh identifier
+        v1: Index of the vertex the ray starts from
+        v2: Index of the vertex the ray points to (the end of the edge)
+        t: Returns the distance of the closest hit from ``points[v1]``
+        bary_u: Returns the barycentric u coordinate of the closest hit
+        bary_v: Returns the barycentric v coordinate of the closest hit
+        sign: Returns a value > 0 if the ray hit in front of the face, returns < 0 otherwise
+        normal: Returns the normalized face normal
+        face: Returns the index of the hit face""",
+    export=False,
+    is_differentiable=False,
+)
+
+add_builtin(
+    "mesh_query_edge",
+    input_types={"id": uint64, "v1": int, "v2": int},
+    value_type=MeshQueryRay,
+    group="Geometry",
+    doc="""Compute the closest hit of a mesh edge with the rest of the :class:`warp.Mesh` with identifier ``id``.
+
+    A ray is cast from vertex ``v1`` towards vertex ``v2`` of the mesh. Triangles that contain ``v1`` or ``v2``
+    are ignored. ``result`` is ``True`` if a hit with ``0 <= t < length(points[v2] - points[v1])`` is found;
+    the other fields have the same meaning as for :func:`mesh_query_ray`.
+
+    Args:
+        id: The mesh identifier
+        v1: Index of the vertex the ray starts from
+        v2: Index of the vertex the ray points to (the end of the edge)""",
+    export=False,
+    is_differentiable=False,
+)
+
+add_builtin(
     "mesh_query_aabb",
     input_types={"id": uint64, "low": vec3, "high": vec3},
     value_type=MeshQueryAABB,

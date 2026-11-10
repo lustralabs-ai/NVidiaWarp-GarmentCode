@@ -4692,6 +4692,51 @@ def mesh_query_ray_count_intersections(id: uint64, start: vec3f, dir: vec3f, roo
         The number of intersections (with ``t >= 0``) between the ray and the mesh."""
     ...
 
+@over
+def mesh_query_edge(
+    id: uint64,
+    v1: int32,
+    v2: int32,
+    t: float32,
+    bary_u: float32,
+    bary_v: float32,
+    sign: float32,
+    normal: vec3f,
+    face: int32,
+) -> bool:
+    """Compute the closest hit of a mesh edge with the rest of the :class:`warp.Mesh` with identifier ``id``.
+
+    A ray is cast from vertex ``v1`` towards vertex ``v2`` of the mesh. Triangles that contain ``v1`` or ``v2``
+    are ignored. Returns ``True`` if a hit with ``0 <= t < length(points[v2] - points[v1])`` is found, in which
+    case the output arguments are written with the same meaning as for :func:`mesh_query_ray`; otherwise
+    they are left unchanged.
+
+    Args:
+        id: The mesh identifier
+        v1: Index of the vertex the ray starts from
+        v2: Index of the vertex the ray points to (the end of the edge)
+        t: Returns the distance of the closest hit from ``points[v1]``
+        bary_u: Returns the barycentric u coordinate of the closest hit
+        bary_v: Returns the barycentric v coordinate of the closest hit
+        sign: Returns a value > 0 if the ray hit in front of the face, returns < 0 otherwise
+        normal: Returns the normalized face normal
+        face: Returns the index of the hit face"""
+    ...
+
+@over
+def mesh_query_edge(id: uint64, v1: int32, v2: int32) -> MeshQueryRay:
+    """Compute the closest hit of a mesh edge with the rest of the :class:`warp.Mesh` with identifier ``id``.
+
+    A ray is cast from vertex ``v1`` towards vertex ``v2`` of the mesh. Triangles that contain ``v1`` or ``v2``
+    are ignored. ``result`` is ``True`` if a hit with ``0 <= t < length(points[v2] - points[v1])`` is found;
+    the other fields have the same meaning as for :func:`mesh_query_ray`.
+
+    Args:
+        id: The mesh identifier
+        v1: Index of the vertex the ray starts from
+        v2: Index of the vertex the ray points to (the end of the edge)"""
+    ...
+
 def mesh_query_aabb(id: uint64, low: vec3f, high: vec3f) -> MeshQueryAABB:
     """Construct an axis-aligned bounding box query against a :class:`warp.Mesh`.
 
