@@ -5,7 +5,7 @@
 # distribution of this software and related documentation without an express
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
-from warp.context import synchronize
+from warp import synchronize
 import warp as wp
 
 import numpy as np

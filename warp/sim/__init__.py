@@ -44,7 +44,5 @@ from .integrator_xpbd import XPBDIntegrator
 from .collide import collide
 from .articulation import eval_fk, eval_ik
 
-from .import_mjcf import parse_mjcf
-from .import_urdf import parse_urdf
-from .import_snu import parse_snu
-from .import_usd import parse_usd, resolve_usd_from_url
+# Warp 1.13 port: the MJCF/URDF/SNU/USD importers are not used by GarmentCode and were
+# dropped (they depended on APIs removed from Warp); see port-docs/sim_port.md.

@@ -16,6 +16,11 @@ import numpy as np
 
 import warp as wp
 
+# Warp 1.13: these helpers are no longer re-exported publicly (wp.utils / wp.types);
+# the implementations are unchanged from beta.6.
+from warp._src.types import int_types
+from warp._src.utils import MeshAdjacency, warn
+
 from .inertia import (
     compute_box_inertia,
     compute_capsule_inertia,
@@ -67,7 +72,7 @@ JOINT_MODE_TARGET_VELOCITY = wp.constant(2)
 
 def flag_to_int(flag):
     """Converts a flag to an integer."""
-    if type(flag) in wp.types.int_types:
+    if type(flag) in int_types:
         return flag.value
     return int(flag)
 
@@ -310,7 +315,7 @@ class State:
             self.body_f.zero_()
 
     def flatten(self):
-        wp.utils.warn(
+        warn(
             "Model.flatten() will be removed in a future Warp version.",
             DeprecationWarning,
             stacklevel=2,
@@ -946,7 +951,7 @@ class Model:
         return tensors
 
     def collide(self, state: State):
-        wp.utils.warn(
+        warn(
             "Model.collide() is not needed anymore and will be removed in a future Warp version.",
             DeprecationWarning,
             stacklevel=2,
@@ -969,7 +974,7 @@ class Model:
 
     @property
     def soft_contact_distance(self):
-        wp.utils.warn(
+        warn(
             "Model.soft_contact_distance is deprecated and will be removed in a future Warp version. "
             "Particles now have individual radii, returning `Model.particle_max_radius`.",
             DeprecationWarning,
@@ -979,7 +984,7 @@ class Model:
 
     @soft_contact_distance.setter
     def soft_contact_distance(self, value):
-        wp.utils.warn(
+        warn(
             "Model.soft_contact_distance is deprecated and will be removed in a future Warp version. "
             "Particles now have individual radii, see `Model.particle_radius`.",
             DeprecationWarning,
@@ -994,7 +999,7 @@ class Model:
     @particle_radius.setter
     def particle_radius(self, value):
         if isinstance(value, float):
-            wp.utils.warn(
+            warn(
                 "Model.particle_radius is an array of per-particle radii, assigning with a scalar value "
                 "is deprecated and will be removed in a future Warp version.",
                 PendingDeprecationWarning,
@@ -3598,7 +3603,7 @@ class ModelBuilder:
 
         # bending constraints, could create these explicitly for a grid but this
         # is a good test of the adjacency structure
-        adj = wp.utils.MeshAdjacency(self.tri_indices[start_tri:end_tri], end_tri - start_tri)
+        adj = MeshAdjacency(self.tri_indices[start_tri:end_tri], end_tri - start_tri)
 
         spring_indices = set()
 
@@ -3700,7 +3705,7 @@ class ModelBuilder:
 
         end_tri = len(self.tri_indices)
 
-        adj = wp.utils.MeshAdjacency(self.tri_indices[start_tri:end_tri], end_tri - start_tri)
+        adj = MeshAdjacency(self.tri_indices[start_tri:end_tri], end_tri - start_tri)
 
         edgeinds = np.fromiter(
             (x for e in adj.edges.values() if e.f0 != -1 and e.f1 != -1 for x in (e.o0, e.o1, e.v0, e.v1)),
@@ -3831,7 +3836,7 @@ class ModelBuilder:
             self.particle_mass[inds[t, 1]] += density * area / 3.0
             self.particle_mass[inds[t, 2]] += density * area / 3.0
         end_tri = len(self.tri_indices)
-        adj = wp.utils.MeshAdjacency(self.tri_indices[start_tri:end_tri], end_tri - start_tri)
+        adj = MeshAdjacency(self.tri_indices[start_tri:end_tri], end_tri - start_tri)
         edgeinds = np.array([[e.o0, e.o1, e.v0, e.v1] for k, e in adj.edges.items()])
         self.add_edges(
             edgeinds[:, 0],
@@ -3948,7 +3953,7 @@ class ModelBuilder:
             self.particle_mass[inds[t, 2]] += density * area / 3.0
 
         end_tri = len(self.tri_indices)
-        adj = wp.utils.MeshAdjacency(self.tri_indices[start_tri:end_tri], end_tri - start_tri)
+        adj = MeshAdjacency(self.tri_indices[start_tri:end_tri], end_tri - start_tri)
         edgeinds = np.fromiter(
             (x for e in adj.edges.values() if e.f0 != -1 and e.f1 != -1 for x in (e.o0, e.o1, e.v0, e.v1)),
             int,

@@ -13,7 +13,7 @@ from collections import defaultdict
 
 import numpy as np
 
-from warp.render.utils import solidify_mesh, tab10_color_map
+from warp._src.render.utils import solidify_mesh, tab10_color_map  # Warp 1.13: private module moved
 
 # TODO allow NaNs in Warp kernels
 NAN = wp.constant(-1.0e8)

@@ -654,7 +654,7 @@ def eval_tetrahedra(
     v20 = v2 - v0
     v30 = v3 - v0
 
-    Ds = wp.mat33(x10, x20, x30)
+    Ds = wp.matrix_from_cols(x10, x20, x30)
     Dm = pose[tid]
 
     inv_rest_volume = wp.determinant(Dm) * 6.0
@@ -669,7 +669,7 @@ def eval_tetrahedra(
 
     # F = Xs*Xm^-1
     F = Ds * Dm
-    dFdt = wp.mat33(v10, v20, v30) * Dm
+    dFdt = wp.matrix_from_cols(v10, v20, v30) * Dm
 
     col1 = wp.vec3(F[0, 0], F[1, 0], F[2, 0])
     col2 = wp.vec3(F[0, 1], F[1, 1], F[2, 1])

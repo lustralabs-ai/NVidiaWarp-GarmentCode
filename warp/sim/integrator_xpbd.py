@@ -692,7 +692,7 @@ def solve_tetrahedra(
     v20 = v2 - v0
     v30 = v3 - v0
 
-    Ds = wp.mat33(x10, x20, x30)
+    Ds = wp.matrix_from_cols(x10, x20, x30)
     Dm = pose[tid]
 
     inv_rest_volume = wp.determinant(Dm) * 6.0
