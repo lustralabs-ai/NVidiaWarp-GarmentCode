@@ -1,5 +1,29 @@
 # ROCm Warp
 
+> [!WARNING]
+> **This is an experimental, internal fork — not AMD's or NVIDIA's Warp.**
+> Branch `garmentcode-rocm` = [AMD-Ecosystem/warp](https://github.com/AMD-Ecosystem/warp) `amd-integration`
+> (Warp 1.13.0+rocm.0) plus local changes made to run [GarmentCode](https://github.com/maria-korosteleva/GarmentCode)'s
+> cloth simulation on an AMD Radeon 8060S (gfx1151, ROCm 10.1):
+>
+> - `warp/sim/` and `warp/collision/` are **re-added** from GarmentCode's Warp fork
+>   ([NvidiaWarp-GarmentCode](https://github.com/maria-korosteleva/NvidiaWarp-GarmentCode), based on Warp 1.0.0-beta.6)
+>   and adapted to the 1.13 API. Upstream removed `warp.sim` in 1.10; this is *not* the upstream 1.9 `warp.sim`,
+>   and that code comes from a beta.6-era fork whose licence terms have not been reviewed against this
+>   Apache-2.0 tree — internal use only until they are.
+> - New native builtin `wp.mesh_query_edge` (`warp/native/mesh.h`), ported from the same fork.
+> - Meshes created by `warp.sim` use beta.6's BVH layout (median/LBVH builder, leaf size 1) rather than the 1.13 defaults.
+> - `warp/native/builtin.h`: `uint8_t`..`uint64_t` typedefs so hiprtc in ROCm 10.1 can JIT kernels.
+> - The fork's USD/MJCF/URDF importers and the `ray_hit` panel-assignment strategy were not ported.
+>
+> Validated only for GarmentCode's XPBD drape path: bit-identical to the original fork on CPU, statistically
+> equivalent on the 8060S. Parts of Warp's own test suite fail on this GPU (tile ops, sparse/linear solvers,
+> some FEM, fp16 inverse). Commits were written by AI coding agents under supervision and carry no DCO sign-off.
+>
+> Documentation of the changes lives in the `port-docs/` directory of our GarmentCode fork (branch `amd-rocm`):
+> `PLAN.md` (overview and status), `SETUP.md` (build and install), `api_drift.md`, `sim_port.md`,
+> `mesh_query_edge.md`, `test_triage.md`, `gpu_validation.md`, `batch_validation.md`.
+
 ROCm Warp is a port of the [Warp](https://github.com/Nvidia/warp) library and adds support for AMD instinct GPUs. This project is in active development. 
 
 Warp is a Python framework for writing high-performance simulation and graphics code. Warp takes regular Python functions and JIT compiles them to efficient kernel code that can run on the CPU or GPU.
