@@ -261,7 +261,8 @@ class Mesh:
             vel = wp.zeros_like(pos)
             indices = wp.array(self.indices, dtype=wp.int32)
 
-            self.mesh = wp.Mesh(points=pos, velocities=vel, indices=indices)
+            self.mesh = wp.Mesh(points=pos, velocities=vel, indices=indices,  # Warp 1.13: request beta.6's BVH (median on CPU / LBVH on GPU, 1 face per leaf) to keep query tie-breaking identical
+                                bvh_constructor="median" if pos.device.is_cpu else "lbvh", bvh_leaf_size=1)
             return self.mesh.id
 
     def __hash__(self):
@@ -4478,7 +4479,8 @@ class ModelBuilder:
             # TODO It's only needed in case of simulating meshes. Under a flag in add cloth_mesh routines
             # build shape of particles  
             m.particle_shape = wp.Mesh(points=wp.array(self.particle_q, dtype=wp.vec3),
-                                       indices=wp.array(self.particle_inds, dtype=int))
+                                       indices=wp.array(self.particle_inds, dtype=int),  # Warp 1.13: request beta.6's BVH (median on CPU / LBVH on GPU, 1 face per leaf) to keep query tie-breaking identical
+                                       bvh_constructor="median" if wp.get_device(device).is_cpu else "lbvh", bvh_leaf_size=1)
             # compute per-vertex normal for particle shape 
             m.particle_normal = wp.zeros(len(self.particle_q), dtype=wp.vec3)
             compute_vertex_normal(m.particle_shape, m.particle_normal)

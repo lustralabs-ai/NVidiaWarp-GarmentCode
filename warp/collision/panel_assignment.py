@@ -168,7 +168,8 @@ def panel_assignment(
     
     body_shape = wp.Mesh(
         points = wp.array(body_verts, dtype=wp.vec3, device=device),
-        indices = wp.array(body_indices, dtype=int, device=device)
+        indices = wp.array(body_indices, dtype=int, device=device),  # Warp 1.13: request beta.6's BVH (median on CPU / LBVH on GPU, 1 face per leaf) to keep query tie-breaking identical
+        bvh_constructor="median" if wp.get_device(device).is_cpu else "lbvh", bvh_leaf_size=1,
     )
     
     body_transform = wp.transform_multiply(body_transform, wp.transform_inverse(panel_transform))
