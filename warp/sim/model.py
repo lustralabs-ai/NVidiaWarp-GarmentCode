@@ -3257,8 +3257,9 @@ class ModelBuilder:
             p, q, r = self.create_triangle_with_edge_lengths(res, res, res, [])
             qp = q - p
             rp = r - p
-            n = wp.normalize(wp.cross(qp, rp))
-            e1 = wp.normalize(qp)
+            # Warp 1.13: see note in the orig_lens branch below (beta.6 used the vec3d overload).
+            n = wp.normalize(wp.cross(wp.vec3d(qp), wp.vec3d(rp)))
+            e1 = wp.normalize(wp.vec3d(qp))
             e2 = wp.normalize(wp.cross(n, e1))
             R = np.array((e1, e2))
             M = np.array((qp, rp))
@@ -3280,8 +3281,10 @@ class ModelBuilder:
                 p, q, r = self.create_triangle_with_edge_lengths(el1, el2, el3, tri_inds)
                 qp = q - p
                 rp = r - p
-                n = wp.normalize(wp.cross(qp, rp))
-                e1 = wp.normalize(qp)
+                # Warp 1.13: Python-scope builtins reject ndarrays; beta.6 matched these float64
+                # ndarrays to the vec3d overload, so convert explicitly to vec3d (bit-identical).
+                n = wp.normalize(wp.cross(wp.vec3d(qp), wp.vec3d(rp)))
+                e1 = wp.normalize(wp.vec3d(qp))
                 e2 = wp.normalize(wp.cross(n, e1))
                 R = np.array((e1, e2))
                 M = np.array((qp, rp))
@@ -3677,7 +3680,7 @@ class ModelBuilder:
 
         # particles
         for v in vertices:
-            p = wp.quat_rotate(rot, wp.vec3(v * scale)) + pos
+            p = wp.quat_rotate(rot, wp.vec3(v * scale)) + wp.vec3(pos)  # Warp 1.13: tuple operand rejected
 
             self.add_particle(p, vel, 0.0)
 
@@ -3894,7 +3897,7 @@ class ModelBuilder:
         start_tri = len(self.tri_indices)
         # particles
         for v in vertices:
-            p = wp.quat_rotate(rot, wp.vec3(v * scale)) + pos
+            p = wp.quat_rotate(rot, wp.vec3(v * scale)) + wp.vec3(pos)  # Warp 1.13: tuple operand rejected
             self.add_particle(p, vel, radius)
         # triangles
         inds = np.array(indices).reshape(-1, 3)
