@@ -83,6 +83,14 @@ __device__ inline void __debugbreak() { __builtin_trap(); }
 #include <cuda_fp16.h>
 #endif
 
+#if defined(__HIP_PLATFORM_AMD__) || defined(__HIPCC__)
+// PROBE: newer hiprtc (ROCm 10.x) does not provide the unsigned fixed-width types
+typedef __UINT8_TYPE__ uint8_t;
+typedef __UINT16_TYPE__ uint16_t;
+typedef __UINT32_TYPE__ uint32_t;
+typedef __UINT64_TYPE__ uint64_t;
+#endif
+
 namespace wp {
 
 // numeric types (used from generated kernels)
